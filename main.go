@@ -113,11 +113,11 @@ func main() {
 	err = db.View(func(txn *badger.Txn) error {
 		item, err := txn.Get([]byte("height"))
 		if err != nil {
-			panic(err)
+			return err
 		}
 		height, err = strconv.Atoi(item.String())
 		if err != nil {
-			panic(err)
+			return err
 		}
 		// Your code here…
 		return nil
