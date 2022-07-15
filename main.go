@@ -107,6 +107,7 @@ func main() {
 		panic(err)
 	}
 
+	// Start from chain genesis
 	height := 0
 
 	// Set the starting height to the stored height
@@ -134,7 +135,7 @@ func main() {
 
 	// Walk the Ethermint chain starting from block 0
 	// Retrieve each block and parse out the "result.hash" and "result.eth_hash"
-	walkChain(*rawClient, *client, uint64(height), db)
+	go walkChain(*rawClient, *client, uint64(height), db)
 
 	// start server
 	// proxy := goproxy.NewProxyHttpServer()
