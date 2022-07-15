@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"math/big"
+	"strconv"
 
 	badger "github.com/dgraph-io/badger/v3"
 
@@ -49,6 +50,7 @@ func getBlockHashesByNum(client *rpc.Client, args ...interface{}) (*rpcBlock, er
 
 // walk the chain from height to head
 func walkChain(rawClient rpc.Client, client ethclient.Client, height uint64, db *badger.DB) {
+	fmt.Println("walking chain from height: ", height)
 	head, err := client.BlockNumber(context.Background())
 	if err != nil {
 		panic(err)
@@ -58,6 +60,8 @@ func walkChain(rawClient rpc.Client, client ethclient.Client, height uint64, db 
 		if err != nil {
 			panic(err)
 		}
+		// Create a two kv pairs for each block, one from eth->tm and one from tm->eth
+
 		// Add to the DB
 		txn := db.NewTransaction(true)
 		defer txn.Discard()
@@ -72,6 +76,11 @@ func walkChain(rawClient rpc.Client, client ethclient.Client, height uint64, db 
 		if err != nil {
 			panic(err)
 		}
+		// block height
+		err = txn.Set([]byte("height"), []byte(strconv.Itoa(int(i))))
+		if err != nil {
+			panic(err)
+		}
 		// Commit the transaction and check for error.
 		if err := txn.Commit(); err != nil {
 			panic(err)
@@ -81,9 +90,9 @@ func walkChain(rawClient rpc.Client, client ethclient.Client, height uint64, db 
 }
 
 func main() {
-	// Open the Badger database located in the /tmp/badger directory.
+	// Open the Badger database located in the /badger directory.
 	// It will be created if it doesn't exist.
-	db, err := badger.Open(badger.DefaultOptions("/tmp/badger"))
+	db, err := badger.Open(badger.DefaultOptions("/badger"))
 	if err != nil {
 		panic(err)
 	}
@@ -98,12 +107,28 @@ func main() {
 		panic(err)
 	}
 
+	height := 0
+
+	// Set the starting height to the stored height
+	err = db.View(func(txn *badger.Txn) error {
+		item, err := txn.Get([]byte("height"))
+		if err != nil {
+			panic(err)
+		}
+		height, err = strconv.Atoi(item.String())
+		if err != nil {
+			panic(err)
+		}
+		// Your code here…
+		return nil
+	})
+	if err != nil {
+		panic(err)
+	}
+
 	// Walk the Ethermint chain starting from block 0
 	// Retrieve each block and parse out the "result.hash" and "result.eth_hash"
-	walkChain(*rawClient, *client, 0, db)
-
-	// Create a two kv pairs for each block, one from eth->tm and one from tm->eth
-	// Increment a block height counter
+	walkChain(*rawClient, *client, uint64(height), db)
 
 	// start server
 	// proxy := goproxy.NewProxyHttpServer()
