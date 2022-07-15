@@ -115,17 +115,19 @@ func main() {
 		if err != nil {
 			return err
 		}
-		height, err = strconv.Atoi(item.String())
-		if err != nil {
-			return err
-		}
-		// Your code here…
+		err = item.Value(func(val []byte) error {
+			// This func with val would only be called if item.Value encounters no error.
+			valCopy := append([]byte{}, val...)
+			height, err = strconv.Atoi(string(valCopy))
+			if err != nil {
+				return err
+			}
+			return nil
+		})
 		return nil
 	})
 	if err != nil {
-		if err.Error() != "Key not found" {
-			panic(err)
-		}
+		panic(err)
 	}
 
 	// Walk the Ethermint chain starting from block 0
