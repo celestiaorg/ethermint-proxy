@@ -127,7 +127,9 @@ func main() {
 		return nil
 	})
 	if err != nil {
-		panic(err)
+		if err.Error() != "Key not found" {
+			panic(err)
+		}
 	}
 
 	// Walk the Ethermint chain starting from block 0
