@@ -137,6 +137,8 @@ func main() {
 	// Retrieve each block and parse out the "result.hash" and "result.eth_hash"
 	go walkChain(*rawClient, *client, uint64(height), db)
 
+	for {
+	}
 	// start server
 	// proxy := goproxy.NewProxyHttpServer()
 	// proxy.Verbose = true
