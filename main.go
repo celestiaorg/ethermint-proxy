@@ -109,7 +109,7 @@ func main() {
 	if err != nil {
 		panic(err)
 	}
-	wsClient, err := ethclient.Dial("wss://ethermint0:8545")
+	wsClient, err := ethclient.Dial("ws://ethermint0:8546")
 	if err != nil {
 		panic(err)
 	}
