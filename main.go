@@ -143,7 +143,7 @@ func main() {
 	c := make(chan *ethtypes.Header)
 	sub, err := client.SubscribeNewHead(context.Background(), c)
 	if err != nil {
-		panic(err)
+		panic("can't sub: " + err.Error())
 	}
 	fmt.Println(sub)
 
