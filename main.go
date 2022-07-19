@@ -12,7 +12,6 @@ import (
 	"github.com/ethereum/go-ethereum"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/common/hexutil"
-	ethtypes "github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/ethclient"
 	"github.com/ethereum/go-ethereum/rpc"
 )
@@ -140,19 +139,19 @@ func main() {
 	go walkChain(*rawClient, *client, uint64(height), db)
 
 	// init our channel
-	c := make(chan *ethtypes.Header)
-	sub, err := client.SubscribeNewHead(context.Background(), c)
-	if err != nil {
-		panic(err)
-	}
-	fmt.Println(sub)
+	// c := make(chan *ethtypes.Header)
+	// sub, err := client.SubscribeNewHead(context.Background(), c)
+	// if err != nil {
+	// 	panic(err)
+	// }
+	// fmt.Println(sub)
 
-	for {
-		select {
-		case s := <-c:
-			fmt.Println(s)
-		}
-	}
+	// for {
+	// 	select {
+	// 	case s := <-c:
+	// 		fmt.Println(s)
+	// 	}
+	// }
 	// start server
 	// proxy := goproxy.NewProxyHttpServer()
 	// proxy.Verbose = true
