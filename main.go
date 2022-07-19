@@ -88,6 +88,7 @@ func walkChain(rawClient rpc.Client, client ethclient.Client, height uint64, db 
 		}
 		fmt.Printf("height: %d\ttmHash: %v\tethHash: %v\n", i, b.TmHash, b.EthHash)
 	}
+	return
 }
 
 func main() {
