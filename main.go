@@ -109,6 +109,10 @@ func main() {
 	if err != nil {
 		panic(err)
 	}
+	wsClient, err := ethclient.Dial("ws://ethermint0:8545")
+	if err != nil {
+		panic(err)
+	}
 
 	// Start from chain genesis
 	height := 0
@@ -144,7 +148,7 @@ func main() {
 	}
 
 	c := make(chan *ethtypes.Header)
-	sub, err := client.SubscribeNewHead(context.Background(), c)
+	sub, err := wsClient.SubscribeNewHead(context.Background(), c)
 	if err != nil {
 		panic("can't sub: " + err.Error())
 	}
