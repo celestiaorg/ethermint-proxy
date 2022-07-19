@@ -147,16 +147,20 @@ func main() {
 		panic(err)
 	}
 
-	c := make(chan *ethtypes.Header)
-	sub, err := wsClient.SubscribeNewHead(context.Background(), c)
+	headers := make(chan *ethtypes.Header)
+	sub, err := wsClient.SubscribeNewHead(context.Background(), headers)
 	if err != nil {
 		panic("can't sub: " + err.Error())
 	}
 	fmt.Println(sub)
 
-	go printData(c)
-
 	for {
+		select {
+		case err := <-sub.Err():
+			panic(err)
+		case header := <-headers:
+			fmt.Println(header.Hash().Hex()) // 0xbc10defa8dda384c96a17640d84de5578804945d347072e091b4e5f390ddea7f
+		}
 	}
 	// for {
 	// 	select {
