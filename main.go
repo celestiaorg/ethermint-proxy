@@ -6,12 +6,14 @@ import (
 	"fmt"
 	"math/big"
 	"strconv"
+	"time"
 
 	badger "github.com/dgraph-io/badger/v3"
 
 	"github.com/ethereum/go-ethereum"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/common/hexutil"
+	ethtypes "github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/ethclient"
 	"github.com/ethereum/go-ethereum/rpc"
 )
@@ -138,13 +140,14 @@ func main() {
 	// Retrieve each block and parse out the "result.hash" and "result.eth_hash"
 	go walkChain(*rawClient, *client, uint64(height), db)
 
-	// init our channel
-	// c := make(chan *ethtypes.Header)
-	// sub, err := client.SubscribeNewHead(context.Background(), c)
-	// if err != nil {
-	// 	panic(err)
-	// }
-	// fmt.Println(sub)
+	c := make(chan *ethtypes.Header)
+	sub, err := client.SubscribeNewHead(context.Background(), c)
+	if err != nil {
+		panic(err)
+	}
+	fmt.Println(sub)
+
+	go printData(c)
 
 	for {
 	}
@@ -158,4 +161,10 @@ func main() {
 	// proxy := goproxy.NewProxyHttpServer()
 	// proxy.Verbose = true
 	// log.Fatal(http.ListenAndServe(":8080", proxy))
+}
+
+func printData(c chan *ethtypes.Header) {
+	time.Sleep(time.Second * 3)
+	head := <-c
+	fmt.Println("New Head: ", head.Number)
 }
