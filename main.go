@@ -146,6 +146,8 @@ func main() {
 	// }
 	// fmt.Println(sub)
 
+	for {
+	}
 	// for {
 	// 	select {
 	// 	case s := <-c:
