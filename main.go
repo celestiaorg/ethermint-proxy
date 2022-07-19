@@ -51,7 +51,7 @@ func getBlockHashesByNum(client *rpc.Client, args ...interface{}) (*rpcBlock, er
 }
 
 // walk the chain from height to head
-func walkChain(rawClient rpc.Client, client ethclient.Client, height uint64, db *badger.DB) {
+func walkChain(rawClient rpc.Client, client ethclient.Client, height uint64, db *badger.DB) error {
 	fmt.Println("walking chain from height: ", height)
 	head, err := client.BlockNumber(context.Background())
 	if err != nil {
@@ -60,7 +60,7 @@ func walkChain(rawClient rpc.Client, client ethclient.Client, height uint64, db 
 	for i := height; i < head; i++ {
 		b, err := getBlockHashesByNum(&rawClient, toBlockNumArg(big.NewInt(int64(i))), true)
 		if err != nil {
-			panic(err)
+			return err
 		}
 		// Create a two kv pairs for each block, one from eth->tm and one from tm->eth
 
@@ -71,25 +71,25 @@ func walkChain(rawClient rpc.Client, client ethclient.Client, height uint64, db 
 		// tm to eth
 		err = txn.Set(b.TmHash.Bytes(), b.EthHash.Bytes())
 		if err != nil {
-			panic(err)
+			return err
 		}
 		// eth to tm
 		err = txn.Set(b.EthHash.Bytes(), b.TmHash.Bytes())
 		if err != nil {
-			panic(err)
+			return err
 		}
 		// block height
 		err = txn.Set([]byte("height"), []byte(strconv.Itoa(int(i))))
 		if err != nil {
-			panic(err)
+			return err
 		}
 		// Commit the transaction and check for error.
 		if err := txn.Commit(); err != nil {
-			panic(err)
+			return err
 		}
 		fmt.Printf("height: %d\ttmHash: %v\tethHash: %v\n", i, b.TmHash, b.EthHash)
 	}
-	return
+	return nil
 }
 
 func main() {
@@ -138,7 +138,10 @@ func main() {
 
 	// Walk the Ethermint chain starting from block 0
 	// Retrieve each block and parse out the "result.hash" and "result.eth_hash"
-	go walkChain(*rawClient, *client, uint64(height), db)
+	err = walkChain(*rawClient, *client, uint64(height), db)
+	if err != nil {
+		panic(err)
+	}
 
 	c := make(chan *ethtypes.Header)
 	sub, err := client.SubscribeNewHead(context.Background(), c)
