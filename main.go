@@ -141,7 +141,7 @@ func main() {
 		return nil
 	})
 	if err != nil {
-		if err.Error() != "Key not found" {
+		if err.Error() != "key not found" {
 			panic(err)
 		}
 	}
@@ -153,7 +153,8 @@ func main() {
 		panic(err)
 	}
 
-	// go server()
+	errChan := make(chan error)
+	go server(errChan)
 
 	// Tick every 4 seconds
 	ticker := time.NewTicker(4 * time.Second)
@@ -199,6 +200,8 @@ func main() {
 			}
 			fmt.Printf("height: %d\ttmHash: %v\tethHash: %v\n", head, b.TmHash, b.EthHash)
 			head++
+		case err = <-errChan:
+			fmt.Println(err)
 		}
 	}
 
@@ -232,19 +235,16 @@ func (s *EthService) Get(a int) int {
 	return a
 }
 
-func server() error {
+func server(errChan chan error) {
 	eth := new(EthService)
 	server := rpc.NewServer()
 	server.RegisterName("eth", eth)
 	l, err := net.Listen("http", ":8080")
 	if err != nil {
-		return err
-		// handle error
+		errChan <- err
 	}
 	err = server.ServeListener(l)
 	if err != nil {
-		return err
-		// handle error
+		errChan <- err
 	}
-	return nil
 }
