@@ -200,7 +200,7 @@ func main() {
 			}
 			fmt.Printf("height: %d\ttmHash: %v\tethHash: %v\n", head, b.TmHash, b.EthHash)
 			head++
-		case err = <-errChan:
+		case err := <-errChan:
 			fmt.Println(err)
 		}
 	}
