@@ -196,7 +196,10 @@ func poll(rawClient rpc.Client, client ethclient.Client, height uint64, db *badg
 		case _ = <-ticker.C:
 			b, err := getBlockHashesByNum(&rawClient, toBlockNumArg(big.NewInt(int64(height+1))), true)
 			if err != nil {
-				return err
+				if err.Error() != "Key not found" {
+					return err
+				}
+				continue
 			}
 			// Create a two kv pairs for each block, one from eth->tm and one from tm->eth
 
