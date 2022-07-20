@@ -153,7 +153,7 @@ func main() {
 		panic(err)
 	}
 
-	go server()
+	// go server()
 
 	// Tick every 4 seconds
 	ticker := time.NewTicker(4 * time.Second)
