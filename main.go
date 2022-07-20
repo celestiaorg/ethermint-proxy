@@ -55,6 +55,23 @@ func getBlockHashesByNum(client *rpc.Client, args ...interface{}) (*rpcBlock, er
 	return &body, nil
 }
 
+type EthService struct{}
+
+func (s *EthService) getBlockByHash(hash string, full bool) string {
+	return hash
+}
+
+func server(errChan chan error) {
+	eth := new(EthService)
+	server := rpc.NewServer()
+	server.RegisterName("eth", eth)
+	http.HandleFunc("/", server.ServeHTTP)
+	err := http.ListenAndServe(":8080", nil)
+	if err != nil {
+		errChan <- err
+	}
+}
+
 // walk the chain from height to head
 func walkChain(rawClient rpc.Client, client ethclient.Client, height uint64, db *badger.DB) (uint64, error) {
 	fmt.Println("walking chain from height: ", height)
@@ -222,21 +239,4 @@ func main() {
 			}
 		}
 	*/
-}
-
-type EthService struct{}
-
-func (s *EthService) getBlockByHash(hash common.Hash, full bool) string {
-	return hash.String()
-}
-
-func server(errChan chan error) {
-	eth := new(EthService)
-	server := rpc.NewServer()
-	server.RegisterName("eth", eth)
-	http.HandleFunc("/", server.ServeHTTP)
-	err := http.ListenAndServe(":8080", nil)
-	if err != nil {
-		errChan <- err
-	}
 }
