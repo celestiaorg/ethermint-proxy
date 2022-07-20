@@ -57,7 +57,7 @@ func getBlockHashesByNum(client *rpc.Client, args ...interface{}) (*rpcBlock, er
 
 type EthService struct{}
 
-func (s *EthService) getBlockByHash(hash string, full bool) string {
+func (s *EthService) GetBlockByHash(hash string, full bool) string {
 	return hash
 }
 
