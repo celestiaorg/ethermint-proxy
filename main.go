@@ -51,16 +51,17 @@ func getBlockHashesByNum(client *rpc.Client, args ...interface{}) (*rpcBlock, er
 }
 
 // walk the chain from height to head
-func walkChain(rawClient rpc.Client, client ethclient.Client, height uint64, db *badger.DB) error {
+func walkChain(rawClient rpc.Client, client ethclient.Client, height uint64, db *badger.DB) (uint64, error) {
 	fmt.Println("walking chain from height: ", height)
 	head, err := client.BlockNumber(context.Background())
 	if err != nil {
 		panic(err)
 	}
-	for i := height; i < head; i++ {
+	var i uint64
+	for i = height; i < head; i++ {
 		b, err := getBlockHashesByNum(&rawClient, toBlockNumArg(big.NewInt(int64(i))), true)
 		if err != nil {
-			return err
+			return 0, err
 		}
 		// Create a two kv pairs for each block, one from eth->tm and one from tm->eth
 
@@ -71,25 +72,25 @@ func walkChain(rawClient rpc.Client, client ethclient.Client, height uint64, db 
 		// tm to eth
 		err = txn.Set(b.TmHash.Bytes(), b.EthHash.Bytes())
 		if err != nil {
-			return err
+			return 0, err
 		}
 		// eth to tm
 		err = txn.Set(b.EthHash.Bytes(), b.TmHash.Bytes())
 		if err != nil {
-			return err
+			return 0, err
 		}
 		// block height
 		err = txn.Set([]byte("height"), []byte(strconv.Itoa(int(i))))
 		if err != nil {
-			return err
+			return 0, err
 		}
 		// Commit the transaction and check for error.
 		if err := txn.Commit(); err != nil {
-			return err
+			return 0, err
 		}
 		fmt.Printf("height: %d\ttmHash: %v\tethHash: %v\n", i, b.TmHash, b.EthHash)
 	}
-	return nil
+	return i, nil
 }
 
 func main() {
@@ -109,10 +110,10 @@ func main() {
 	if err != nil {
 		panic(err)
 	}
-	wsClient, err := ethclient.Dial("ws://ethermint0:8546")
-	if err != nil {
-		panic(err)
-	}
+	// wsClient, err := ethclient.Dial("ws://ethermint0:8546")
+	// if err != nil {
+	// 	panic(err)
+	// }
 
 	// Start from chain genesis
 	height := 0
@@ -142,32 +143,31 @@ func main() {
 
 	// Walk the Ethermint chain starting from block 0
 	// Retrieve each block and parse out the "result.hash" and "result.eth_hash"
-	err = walkChain(*rawClient, *client, uint64(height), db)
+	head, err := walkChain(*rawClient, *client, uint64(height), db)
 	if err != nil {
 		panic(err)
 	}
 
-	headers := make(chan *ethtypes.Header)
-	sub, err := wsClient.SubscribeNewHead(context.Background(), headers)
-	if err != nil {
-		panic("can't sub: " + err.Error())
-	}
-	fmt.Println(sub)
+	poll(*rawClient, *client, head, db)
 
-	for {
-		select {
-		case err := <-sub.Err():
-			panic(err)
-		case header := <-headers:
-			fmt.Println(header.Hash().Hex()) // 0xbc10defa8dda384c96a17640d84de5578804945d347072e091b4e5f390ddea7f
+	// Since subscriptions don't work in Optimint right now we'll just poll every X seconds
+	/*
+		headers := make(chan *ethtypes.Header)
+		sub, err := wsClient.SubscribeNewHead(context.Background(), headers)
+		if err != nil {
+			panic("can't sub: " + err.Error())
 		}
-	}
-	// for {
-	// 	select {
-	// 	case s := <-c:
-	// 		fmt.Println(s)
-	// 	}
-	// }
+
+		for {
+			select {
+			case err := <-sub.Err():
+				panic(err)
+			case header := <-headers:
+				fmt.Println(header.Hash().Hex()) // 0xbc10defa8dda384c96a17640d84de5578804945d347072e091b4e5f390ddea7f
+			}
+		}
+	*/
+
 	// start server
 	// proxy := goproxy.NewProxyHttpServer()
 	// proxy.Verbose = true
@@ -178,4 +178,50 @@ func printData(c chan *ethtypes.Header) {
 	time.Sleep(time.Second * 3)
 	head := <-c
 	fmt.Println("New Head: ", head.Number)
+}
+
+func poll(rawClient rpc.Client, client ethclient.Client, height uint64, db *badger.DB) error {
+	// Tick every 5 seconds
+	ticker := time.NewTicker(5 * time.Second)
+	defer ticker.Stop()
+
+	for {
+		select {
+		// case <-done:
+		// 	fmt.Println("Done!")
+		// 	return nil
+		case _ = <-ticker.C:
+			b, err := getBlockHashesByNum(&rawClient, toBlockNumArg(big.NewInt(int64(height+1))), true)
+			if err != nil {
+				return err
+			}
+			// Create a two kv pairs for each block, one from eth->tm and one from tm->eth
+
+			// Add to the DB
+			txn := db.NewTransaction(true)
+			defer txn.Discard()
+
+			// tm to eth
+			err = txn.Set(b.TmHash.Bytes(), b.EthHash.Bytes())
+			if err != nil {
+				return err
+			}
+			// eth to tm
+			err = txn.Set(b.EthHash.Bytes(), b.TmHash.Bytes())
+			if err != nil {
+				return err
+			}
+			// block height
+			err = txn.Set([]byte("height"), []byte(strconv.Itoa(int(height+1))))
+			if err != nil {
+				return err
+			}
+			// Commit the transaction and check for error.
+			if err := txn.Commit(); err != nil {
+				return err
+			}
+			height++
+			fmt.Printf("height: %d\ttmHash: %v\tethHash: %v\n", height, b.TmHash, b.EthHash)
+		}
+	}
 }
