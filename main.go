@@ -143,7 +143,7 @@ func main() {
 
 	// Walk the Ethermint chain starting from block 0
 	// Retrieve each block and parse out the "result.hash" and "result.eth_hash"
-	head, err := walkChain(*rawClient, *client, uint64(height), db)
+	_, err = walkChain(*rawClient, *client, uint64(height), db)
 	if err != nil {
 		panic(err)
 	}
