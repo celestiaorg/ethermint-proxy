@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"math/big"
+	"net"
 	"strconv"
 	"time"
 
@@ -15,6 +16,11 @@ import (
 	"github.com/ethereum/go-ethereum/common/hexutil"
 	"github.com/ethereum/go-ethereum/ethclient"
 	"github.com/ethereum/go-ethereum/rpc"
+)
+
+const (
+	maxRequestContentLength = 1024 * 512
+	defaultErrorCode        = -32000
 )
 
 type rpcBlock struct {
@@ -216,4 +222,21 @@ func main() {
 	// proxy := goproxy.NewProxyHttpServer()
 	// proxy.Verbose = true
 	// log.Fatal(http.ListenAndServe(":8080", proxy))
+}
+
+type EthService struct{}
+
+func (s *EthService) Get(a int) int {
+	return a
+}
+
+func server() {
+	eth := new(EthService)
+	server := rpc.NewServer()
+	server.RegisterName("eth", eth)
+	l, err := net.Listen("tcp", ":8080")
+	if err != nil {
+		// handle error
+	}
+	server.ServeListener(l)
 }
