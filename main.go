@@ -222,58 +222,21 @@ func main() {
 			}
 		}
 	*/
-
-	// start server
-	// proxy := goproxy.NewProxyHttpServer()
-	// proxy.Verbose = true
-	// log.Fatal(http.ListenAndServe(":8080", proxy))
 }
 
 type EthService struct{}
 
-func (s *EthService) Get(a int) int {
-	return a
+func (s *EthService) getBlockByHash(hash common.Hash, full bool) string {
+	return hash.String()
 }
 
 func server(errChan chan error) {
-	// httpServer := &http.Server{Handler: h}
 	eth := new(EthService)
 	server := rpc.NewServer()
 	server.RegisterName("eth", eth)
-	// l, err := net.Listen("tcp", ":8080")
-	// if err != nil {
-	// 	errChan <- err
-	// }
-	// err = server.ServeListener(l)
-	// if err != nil {
-	// 	errChan <- err
-	// }
 	http.HandleFunc("/", server.ServeHTTP)
 	err := http.ListenAndServe(":8080", nil)
 	if err != nil {
 		errChan <- err
 	}
 }
-
-/*
-	// Initialize the server.
-	h.server = &http.Server{Handler: h}
-	if h.timeouts != (rpc.HTTPTimeouts{}) {
-		CheckTimeouts(&h.timeouts)
-		h.server.ReadTimeout = h.timeouts.ReadTimeout
-		h.server.WriteTimeout = h.timeouts.WriteTimeout
-		h.server.IdleTimeout = h.timeouts.IdleTimeout
-	}
-
-	// Start the server.
-	listener, err := net.Listen("tcp", h.endpoint)
-	if err != nil {
-		// If the server fails to start, we need to clear out the RPC and WS
-		// configuration so they can be configured another time.
-		h.disableRPC()
-		h.disableWS()
-		return err
-	}
-	h.listener = listener
-	go h.server.Serve(list
-*/
