@@ -148,7 +148,7 @@ func main() {
 		panic(err)
 	}
 
-	err = poll(*rawClient, *client, head, db)
+	err = poll(*rawClient, *client, db)
 	if err != nil {
 		panic(err)
 	}
