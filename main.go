@@ -239,7 +239,7 @@ func server(errChan chan error) {
 	eth := new(EthService)
 	server := rpc.NewServer()
 	server.RegisterName("eth", eth)
-	l, err := net.Listen("http", ":8080")
+	l, err := net.Listen("tcp", ":8080")
 	if err != nil {
 		errChan <- err
 	}
