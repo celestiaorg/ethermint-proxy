@@ -183,9 +183,14 @@ func printData(c chan *ethtypes.Header) {
 	fmt.Println("New Head: ", head.Number)
 }
 
-func poll(rawClient rpc.Client, client ethclient.Client, height uint64, db *badger.DB) error {
+func poll(rawClient rpc.Client, client ethclient.Client, db *badger.DB) error {
+	head, err := client.BlockNumber(context.Background())
+	if err != nil {
+		panic(err)
+	}
+
 	// Tick every 5 seconds
-	ticker := time.NewTicker(5 * time.Second)
+	ticker := time.NewTicker(4 * time.Second)
 	defer ticker.Stop()
 
 	for {
@@ -194,7 +199,7 @@ func poll(rawClient rpc.Client, client ethclient.Client, height uint64, db *badg
 		// 	fmt.Println("Done!")
 		// 	return nil
 		case _ = <-ticker.C:
-			b, err := getBlockHashesByNum(&rawClient, toBlockNumArg(big.NewInt(int64(height+1))), true)
+			b, err := getBlockHashesByNum(&rawClient, toBlockNumArg(big.NewInt(int64(head))), true)
 			if err != nil {
 				if err.Error() != "key not found" {
 					return err
@@ -218,7 +223,7 @@ func poll(rawClient rpc.Client, client ethclient.Client, height uint64, db *badg
 				return err
 			}
 			// block height
-			err = txn.Set([]byte("height"), []byte(strconv.Itoa(int(height+1))))
+			err = txn.Set([]byte("height"), []byte(strconv.Itoa(int(head+1))))
 			if err != nil {
 				return err
 			}
@@ -226,8 +231,8 @@ func poll(rawClient rpc.Client, client ethclient.Client, height uint64, db *badg
 			if err := txn.Commit(); err != nil {
 				return err
 			}
-			height++
-			fmt.Printf("height: %d\ttmHash: %v\tethHash: %v\n", height, b.TmHash, b.EthHash)
+			fmt.Printf("height: %d\ttmHash: %v\tethHash: %v\n", head, b.TmHash, b.EthHash)
+			head++
 		}
 	}
 }
