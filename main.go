@@ -148,7 +148,10 @@ func main() {
 		panic(err)
 	}
 
-	poll(*rawClient, *client, head, db)
+	err = poll(*rawClient, *client, head, db)
+	if err != nil {
+		panic(err)
+	}
 
 	// Since subscriptions don't work in Optimint right now we'll just poll every X seconds
 	/*
