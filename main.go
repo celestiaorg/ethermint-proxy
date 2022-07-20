@@ -196,7 +196,7 @@ func poll(rawClient rpc.Client, client ethclient.Client, height uint64, db *badg
 		case _ = <-ticker.C:
 			b, err := getBlockHashesByNum(&rawClient, toBlockNumArg(big.NewInt(int64(height+1))), true)
 			if err != nil {
-				if err.Error() != "Key not found" {
+				if err.Error() != "key not found" {
 					return err
 				}
 				continue
