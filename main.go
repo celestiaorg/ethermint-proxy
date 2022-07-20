@@ -13,7 +13,6 @@ import (
 	"github.com/ethereum/go-ethereum"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/common/hexutil"
-	ethtypes "github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/ethclient"
 	"github.com/ethereum/go-ethereum/rpc"
 )
@@ -143,14 +142,56 @@ func main() {
 
 	// Walk the Ethermint chain starting from block 0
 	// Retrieve each block and parse out the "result.hash" and "result.eth_hash"
-	_, err = walkChain(*rawClient, *client, uint64(height), db)
+	head, err := walkChain(*rawClient, *client, uint64(height), db)
 	if err != nil {
 		panic(err)
 	}
 
-	err = poll(*rawClient, *client, db)
-	if err != nil {
-		panic(err)
+	// Tick every 4 seconds
+	ticker := time.NewTicker(4 * time.Second)
+	defer ticker.Stop()
+
+	for {
+		select {
+		// case <-done:
+		// 	fmt.Println("Done!")
+		// 	return nil
+		case _ = <-ticker.C:
+			b, err := getBlockHashesByNum(rawClient, toBlockNumArg(big.NewInt(int64(head))), true)
+			if err != nil {
+				if err.Error() != "key not found" {
+					panic(err)
+				}
+				continue
+			}
+			// Create a two kv pairs for each block, one from eth->tm and one from tm->eth
+
+			// Add to the DB
+			txn := db.NewTransaction(true)
+			defer txn.Discard()
+
+			// tm to eth
+			err = txn.Set(b.TmHash.Bytes(), b.EthHash.Bytes())
+			if err != nil {
+				panic(err)
+			}
+			// eth to tm
+			err = txn.Set(b.EthHash.Bytes(), b.TmHash.Bytes())
+			if err != nil {
+				panic(err)
+			}
+			// block height
+			err = txn.Set([]byte("height"), []byte(strconv.Itoa(int(head+1))))
+			if err != nil {
+				panic(err)
+			}
+			// Commit the transaction and check for error.
+			if err := txn.Commit(); err != nil {
+				panic(err)
+			}
+			fmt.Printf("height: %d\ttmHash: %v\tethHash: %v\n", head, b.TmHash, b.EthHash)
+			head++
+		}
 	}
 
 	// Since subscriptions don't work in Optimint right now we'll just poll every X seconds
@@ -175,64 +216,4 @@ func main() {
 	// proxy := goproxy.NewProxyHttpServer()
 	// proxy.Verbose = true
 	// log.Fatal(http.ListenAndServe(":8080", proxy))
-}
-
-func printData(c chan *ethtypes.Header) {
-	time.Sleep(time.Second * 3)
-	head := <-c
-	fmt.Println("New Head: ", head.Number)
-}
-
-func poll(rawClient rpc.Client, client ethclient.Client, db *badger.DB) error {
-	head, err := client.BlockNumber(context.Background())
-	if err != nil {
-		panic(err)
-	}
-
-	// Tick every 5 seconds
-	ticker := time.NewTicker(4 * time.Second)
-	defer ticker.Stop()
-
-	for {
-		select {
-		// case <-done:
-		// 	fmt.Println("Done!")
-		// 	return nil
-		case _ = <-ticker.C:
-			b, err := getBlockHashesByNum(&rawClient, toBlockNumArg(big.NewInt(int64(head))), true)
-			if err != nil {
-				if err.Error() != "key not found" {
-					return err
-				}
-				continue
-			}
-			// Create a two kv pairs for each block, one from eth->tm and one from tm->eth
-
-			// Add to the DB
-			txn := db.NewTransaction(true)
-			defer txn.Discard()
-
-			// tm to eth
-			err = txn.Set(b.TmHash.Bytes(), b.EthHash.Bytes())
-			if err != nil {
-				return err
-			}
-			// eth to tm
-			err = txn.Set(b.EthHash.Bytes(), b.TmHash.Bytes())
-			if err != nil {
-				return err
-			}
-			// block height
-			err = txn.Set([]byte("height"), []byte(strconv.Itoa(int(head+1))))
-			if err != nil {
-				return err
-			}
-			// Commit the transaction and check for error.
-			if err := txn.Commit(); err != nil {
-				return err
-			}
-			fmt.Printf("height: %d\ttmHash: %v\tethHash: %v\n", head, b.TmHash, b.EthHash)
-			head++
-		}
-	}
 }
