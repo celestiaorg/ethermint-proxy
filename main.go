@@ -232,13 +232,19 @@ func (s *EthService) Get(a int) int {
 	return a
 }
 
-func server() {
+func server() error {
 	eth := new(EthService)
 	server := rpc.NewServer()
 	server.RegisterName("eth", eth)
 	l, err := net.Listen("tcp", ":8080")
 	if err != nil {
+		return err
 		// handle error
 	}
-	server.ServeListener(l)
+	err = server.ServeListener(l)
+	if err != nil {
+		return err
+		// handle error
+	}
+	return nil
 }
