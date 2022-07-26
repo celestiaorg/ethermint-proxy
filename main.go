@@ -6,7 +6,10 @@ import (
 	"fmt"
 	"math/big"
 	"net/http"
+	"os"
+	"os/signal"
 	"strconv"
+	"syscall"
 	"time"
 
 	badger "github.com/dgraph-io/badger/v3"
@@ -167,14 +170,23 @@ func walkChain(rawClient rpc.Client, client ethclient.Client, height uint64, db 
 	return i, nil
 }
 
+func onExit(shutdownCh chan os.Signal, db *badger.DB) {
+	<-shutdownCh
+	db.Close()
+}
+
 func main() {
 	// Open the Badger database located in the /badger directory.
 	// It will be created if it doesn't exist.
+	// Create channel to listen to OS interrupt signals
+	shutdownCh := make(chan os.Signal, 1)
+	signal.Notify(shutdownCh, syscall.SIGINT, syscall.SIGTERM)
 	db, err := badger.Open(badger.DefaultOptions("/badger"))
 	if err != nil {
 		panic(err)
 	}
 	defer db.Close()
+	go onExit(shutdownCh, db)
 
 	client, err := ethclient.Dial("http://ethermint0:8545")
 	if err != nil {
