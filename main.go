@@ -77,7 +77,6 @@ func dbHashLookup(db *badger.DB, hash common.Hash) ([]byte, error) {
 	// If there's a match that means the given hash is an Ethereum hash
 	// Transparently swap the given ethereum hash for the matching tm hash
 	// Make the eth_getBlockByHash(hash) call using the tm hash
-	fmt.Printf("dbHashLookup bytes: %v\n", hash.Bytes())
 	txn := db.NewTransaction(false)
 	defer txn.Discard()
 	item, err := txn.Get(hash.Bytes())
@@ -92,16 +91,15 @@ func dbHashLookup(db *badger.DB, hash common.Hash) ([]byte, error) {
 
 func (s *EthService) GetBlockByHash(hash string, full bool) (*ethtypes.Block, error) {
 	ctx := context.Background()
-	fmt.Println("GetBlockByHash input: ", hash)
 	dbHash, err := dbHashLookup(s.db, common.HexToHash(hash))
 	if err != nil {
 		return &ethtypes.Block{}, err
 	}
-	fmt.Println("GetBlockByHash dbHash: ", common.BytesToHash(dbHash))
 	block, err := s.ethClient.BlockByHash(ctx, common.BytesToHash(dbHash))
 	if err != nil {
 		return &ethtypes.Block{}, err
 	}
+	fmt.Println(block)
 	return block, nil
 }
 
@@ -155,7 +153,6 @@ func walkChain(rawClient rpc.Client, client ethclient.Client, height uint64, db 
 			return 0, err
 		}
 		fmt.Printf("height: %d\ttmHash: %v\tethHash: %v\n", i, b.TmHash, b.EthHash)
-		fmt.Printf("height: %d\ttmHash.Bytes(): %v\tethHash.Bytes(): %v\n", i, b.TmHash.Bytes(), b.EthHash.Bytes())
 
 	}
 	return i, nil
@@ -265,7 +262,6 @@ func main() {
 				panic(err)
 			}
 			fmt.Printf("height: %d\ttmHash: %v\tethHash: %v\n", head, b.TmHash, b.EthHash)
-			fmt.Printf("height: %d\ttmHash: %v\tethHash: %v\n", head, b.TmHash.Bytes(), b.EthHash.Bytes())
 			head++
 		case err := <-errChan:
 			fmt.Println(err)
