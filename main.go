@@ -98,6 +98,8 @@ func dbHashLookup(db *badger.DB, hash string) (string, error) {
 
 func (s *EthService) GetBlockByHash(hash string, full bool) (*ethtypes.Block, error) {
 	ctx := context.Background()
+	fmt.Println("GetBlockByHash string: ", hash)
+	fmt.Println("GetBlockByHash common.HexToHash: ", common.HexToHash(hash))
 	hash, err := dbHashLookup(s.db, hash)
 	if err != nil {
 		return &ethtypes.Block{}, err
