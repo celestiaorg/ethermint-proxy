@@ -222,7 +222,7 @@ func main() {
 		return nil
 	})
 	if err != nil {
-		if err.Error() != "key not found" {
+		if err.Error() != "Key not found" {
 			panic(err)
 		}
 	}
