@@ -68,15 +68,15 @@ func newEthService(db *badger.DB, ethClient *ethclient.Client) *EthService {
 	}
 }
 
-func dbHashLookup(db *badger.DB, hash string) (string, error) {
+func dbHashLookup(db *badger.DB, hash common.Hash) (string, error) {
 	// Lookup any values using the given hash as a key
 	// If there's a match that means the given hash is an Ethereum hash
 	// Transparently swap the given ethereum hash for the matching tm hash
 	// Make the eth_getBlockByHash(hash) call using the tm hash
-	fmt.Printf("dbHashLookup bytes: %v\n", []byte(hash))
+	fmt.Printf("dbHashLookup bytes: %v\n", hash.Bytes())
 	var dbHash string
 	err := db.View(func(txn *badger.Txn) error {
-		item, err := txn.Get([]byte(hash))
+		item, err := txn.Get(hash.Bytes())
 		if err != nil {
 			return err
 		}
@@ -100,7 +100,7 @@ func dbHashLookup(db *badger.DB, hash string) (string, error) {
 func (s *EthService) GetBlockByHash(hash string, full bool) (*ethtypes.Block, error) {
 	ctx := context.Background()
 	fmt.Println("GetBlockByHash input: ", hash)
-	dbHash, err := dbHashLookup(s.db, hash)
+	dbHash, err := dbHashLookup(s.db, common.HexToHash(hash))
 	if err != nil {
 		return &ethtypes.Block{}, err
 	}
