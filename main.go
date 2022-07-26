@@ -269,6 +269,7 @@ func main() {
 				panic(err)
 			}
 			fmt.Printf("height: %d\ttmHash: %v\tethHash: %v\n", head, b.TmHash, b.EthHash)
+			fmt.Printf("height: %d\ttmHash.Bytes(): %v\tethHash.Bytes(): %v\n", i, b.TmHash.Bytes(), b.EthHash.Bytes())
 			head++
 		case err := <-errChan:
 			fmt.Println(err)
