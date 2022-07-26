@@ -18,7 +18,7 @@ import (
 	"github.com/ethereum/go-ethereum"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/common/hexutil"
-	ethtypes "github.com/ethereum/go-ethereum/core/types"
+	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/ethclient"
 	"github.com/ethereum/go-ethereum/rpc"
 )
@@ -89,19 +89,42 @@ func dbHashLookup(db *badger.DB, hash common.Hash) ([]byte, error) {
 	return item.ValueCopy(nil)
 }
 
-func (s *EthService) GetBlockByHash(hash string, full bool) (*ethtypes.Block, error) {
+func (s *EthService) GetBlockByHash(hash string, full bool) (map[string]interface{}, error) {
 	ctx := context.Background()
 	dbHash, err := dbHashLookup(s.db, common.HexToHash(hash))
 	if err != nil {
-		return &ethtypes.Block{}, err
+		return nil, err
 	}
-	block, err := s.ethClient.BlockByHash(ctx, common.BytesToHash(dbHash))
+	header, err := s.ethClient.HeaderByHash(ctx, common.BytesToHash(dbHash))
 	if err != nil {
-		return &ethtypes.Block{}, err
+		return nil, err
 	}
-	fmt.Println("Header: ", block.Header())
-	fmt.Println("Hash: ", block.Hash())
-	return block, nil
+	fmt.Println("Header: ", header)
+	fmt.Println("Hash: ", header.Hash())
+	return formatHeader(header), nil
+}
+
+func formatHeader(header *types.Header) map[string]interface{} {
+	return map[string]interface{}{
+		"number":           header.Number,
+		"hash":             header.Hash,
+		"parentHash":       header.ParentHash,
+		"nonce":            types.BlockNonce{},   // PoW specific
+		"sha3Uncles":       types.EmptyUncleHash, // No uncles in Tendermint
+		"logsBloom":        header.Bloom,
+		"stateRoot":        header.Root,
+		"miner":            header.Coinbase,
+		"mixHash":          common.Hash{},
+		"difficulty":       header.Difficulty,
+		"extraData":        "0x",
+		"size":             header.Size,
+		"gasLimit":         header.GasLimit, // Static gas limit
+		"gasUsed":          header.GasUsed,
+		"timestamp":        header.Time,
+		"transactionsRoot": header.TxHash,
+		"receiptsRoot":     header.ReceiptHash,
+		"uncles":           []common.Hash{},
+	}
 }
 
 func server(errChan chan error, db *badger.DB, ethClient *ethclient.Client) {
