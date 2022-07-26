@@ -14,6 +14,7 @@ import (
 	"github.com/ethereum/go-ethereum"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/common/hexutil"
+	ethtypes "github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/ethclient"
 	"github.com/ethereum/go-ethereum/rpc"
 )
@@ -55,14 +56,61 @@ func getBlockHashesByNum(client *rpc.Client, args ...interface{}) (*rpcBlock, er
 	return &body, nil
 }
 
-type EthService struct{}
-
-func (s *EthService) GetBlockByHash(hash string, full bool) string {
-	return hash
+type EthService struct {
+	db        *badger.DB
+	ethClient *ethclient.Client
 }
 
-func server(errChan chan error) {
-	eth := new(EthService)
+func newEthService(db *badger.DB, ethClient *ethclient.Client) *EthService {
+	return &EthService{
+		db,
+		ethClient,
+	}
+}
+
+func dbHashLookup(db *badger.DB, hash string) (string, error) {
+	// Lookup any values using the given hash as a key
+	// If there's a match that means the given hash is an Ethereum hash
+	// Transparently swap the given ethereum hash for the matching tm hash
+	// Make the eth_getBlockByHash(hash) call using the tm hash
+	var dbHash string
+	err := db.View(func(txn *badger.Txn) error {
+		item, err := txn.Get([]byte(hash))
+		if err != nil {
+			return err
+		}
+		err = item.Value(func(val []byte) error {
+			// This func with val would only be called if item.Value encounters no error.
+			valCopy := append([]byte{}, val...)
+			dbHash = string(valCopy)
+			return nil
+		})
+		return nil
+	})
+	if err != nil {
+		if err.Error() != "key not found" {
+			return "", err
+		}
+	}
+
+	return dbHash, nil
+}
+
+func (s *EthService) GetBlockByHash(hash string, full bool) (*ethtypes.Block, error) {
+	ctx := context.Background()
+	hash, err := dbHashLookup(s.db, hash)
+	if err != nil {
+		return &ethtypes.Block{}, err
+	}
+	block, err := s.ethClient.BlockByHash(ctx, common.HexToHash(hash))
+	if err != nil {
+		return &ethtypes.Block{}, err
+	}
+	return block, nil
+}
+
+func server(errChan chan error, db *badger.DB, ethClient *ethclient.Client) {
+	eth := newEthService(db, ethClient)
 	server := rpc.NewServer()
 	server.RegisterName("eth", eth)
 	http.HandleFunc("/", server.ServeHTTP)
@@ -92,10 +140,10 @@ func walkChain(rawClient rpc.Client, client ethclient.Client, height uint64, db 
 		defer txn.Discard()
 
 		// tm to eth
-		err = txn.Set(b.TmHash.Bytes(), b.EthHash.Bytes())
-		if err != nil {
-			return 0, err
-		}
+		// err = txn.Set(b.TmHash.Bytes(), b.EthHash.Bytes())
+		// if err != nil {
+		// 	return 0, err
+		// }
 		// eth to tm
 		err = txn.Set(b.EthHash.Bytes(), b.TmHash.Bytes())
 		if err != nil {
@@ -171,7 +219,7 @@ func main() {
 	}
 
 	errChan := make(chan error)
-	go server(errChan)
+	go server(errChan, db, client)
 
 	// Tick every 4 seconds
 	ticker := time.NewTicker(4 * time.Second)
