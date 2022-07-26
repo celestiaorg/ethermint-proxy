@@ -142,10 +142,10 @@ func walkChain(rawClient rpc.Client, client ethclient.Client, height uint64, db 
 		defer txn.Discard()
 
 		// tm to eth
-		// err = txn.Set(b.TmHash.Bytes(), b.EthHash.Bytes())
-		// if err != nil {
-		// 	return 0, err
-		// }
+		err = txn.Set(b.TmHash.Bytes(), b.EthHash.Bytes())
+		if err != nil {
+			return 0, err
+		}
 		// eth to tm
 		err = txn.Set(b.EthHash.Bytes(), b.TmHash.Bytes())
 		if err != nil {
