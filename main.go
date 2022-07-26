@@ -60,6 +60,12 @@ func getBlockHashesByNum(client *rpc.Client, args ...interface{}) (*rpcBlock, er
 	return &body, nil
 }
 
+type NoopService struct{}
+
+func (s *NoopService) PassThrough() {
+	fmt.Println("noop")
+}
+
 type EthService struct {
 	db        *badger.DB
 	ethClient *ethclient.Client
@@ -106,7 +112,9 @@ func (s *EthService) GetBlockByHash(hash string, full bool) (types.Header, error
 
 func server(errChan chan error, db *badger.DB, ethClient *ethclient.Client) {
 	eth := newEthService(db, ethClient)
+	noop := new(NoopService)
 	server := rpc.NewServer()
+	server.RegisterName("", noop)
 	server.RegisterName("eth", eth)
 	http.HandleFunc("/", server.ServeHTTP)
 	err := http.ListenAndServe(":8080", nil)
