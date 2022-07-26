@@ -81,10 +81,10 @@ func dbHashLookup(db *badger.DB, hash common.Hash) ([]byte, error) {
 	defer txn.Discard()
 	item, err := txn.Get(hash.Bytes())
 	if errors.Is(err, badger.ErrKeyNotFound) {
-		return nil, err
+		return hash.Bytes(), err
 	}
 	if err != nil {
-		return hash.Bytes(), err
+		return nil, err
 	}
 	return item.ValueCopy(nil)
 }
@@ -92,7 +92,8 @@ func dbHashLookup(db *badger.DB, hash common.Hash) ([]byte, error) {
 func (s *EthService) GetBlockByHash(hash string, full bool) (types.Header, error) {
 	ctx := context.Background()
 	dbHash, err := dbHashLookup(s.db, common.HexToHash(hash))
-	if err != nil {
+	if errors.Is(err, badger.ErrKeyNotFound) {
+	} else if err != nil {
 		return types.Header{}, err
 	}
 	header, err := s.ethClient.HeaderByHash(ctx, common.BytesToHash(dbHash))
@@ -133,11 +134,6 @@ func walkChain(rawClient rpc.Client, client ethclient.Client, height uint64, db 
 		txn := db.NewTransaction(true)
 		defer txn.Discard()
 
-		// tm to eth
-		err = txn.Set(b.TmHash.Bytes(), b.EthHash.Bytes())
-		if err != nil {
-			return 0, err
-		}
 		// eth to tm
 		err = txn.Set(b.EthHash.Bytes(), b.TmHash.Bytes())
 		if err != nil {
@@ -242,11 +238,6 @@ func main() {
 			txn := db.NewTransaction(true)
 			defer txn.Discard()
 
-			// tm to eth
-			err = txn.Set(b.TmHash.Bytes(), b.EthHash.Bytes())
-			if err != nil {
-				panic(err)
-			}
 			// eth to tm
 			err = txn.Set(b.EthHash.Bytes(), b.TmHash.Bytes())
 			if err != nil {
