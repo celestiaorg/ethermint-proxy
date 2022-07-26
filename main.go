@@ -73,6 +73,7 @@ func dbHashLookup(db *badger.DB, hash string) (string, error) {
 	// If there's a match that means the given hash is an Ethereum hash
 	// Transparently swap the given ethereum hash for the matching tm hash
 	// Make the eth_getBlockByHash(hash) call using the tm hash
+	fmt.Printf("dbHashLookup bytes: %v\n", []byte(hash))
 	var dbHash string
 	err := db.View(func(txn *badger.Txn) error {
 		item, err := txn.Get([]byte(hash))
@@ -161,6 +162,8 @@ func walkChain(rawClient rpc.Client, client ethclient.Client, height uint64, db 
 			return 0, err
 		}
 		fmt.Printf("height: %d\ttmHash: %v\tethHash: %v\n", i, b.TmHash, b.EthHash)
+		fmt.Printf("height: %d\ttmHash.Bytes(): %v\tethHash.Bytes(): %v\n", i, b.TmHash.Bytes(), b.EthHash.Bytes())
+
 	}
 	return i, nil
 }
