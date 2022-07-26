@@ -99,7 +99,8 @@ func (s *EthService) GetBlockByHash(hash string, full bool) (*ethtypes.Block, er
 	if err != nil {
 		return &ethtypes.Block{}, err
 	}
-	fmt.Println(block)
+	fmt.Println("Header: ", block.Header())
+	fmt.Println("Hash: ", block.Hash())
 	return block, nil
 }
 
