@@ -89,19 +89,18 @@ func dbHashLookup(db *badger.DB, hash common.Hash) ([]byte, error) {
 	return item.ValueCopy(nil)
 }
 
-func (s *EthService) GetBlockByHash(hash string, full bool) (map[string]interface{}, error) {
+func (s *EthService) GetBlockByHash(hash string, full bool) (types.Header, error) {
 	ctx := context.Background()
 	dbHash, err := dbHashLookup(s.db, common.HexToHash(hash))
 	if err != nil {
-		return nil, err
+		return types.Header{}, err
 	}
 	header, err := s.ethClient.HeaderByHash(ctx, common.BytesToHash(dbHash))
 	if err != nil {
-		return nil, err
+		return types.Header{}, err
 	}
-	fmt.Println("Header: ", header)
 	fmt.Println("Hash: ", header.Hash())
-	return formatHeader(header), nil
+	return *header, nil
 }
 
 func formatHeader(header *types.Header) map[string]interface{} {
@@ -109,21 +108,17 @@ func formatHeader(header *types.Header) map[string]interface{} {
 		"number":           header.Number,
 		"hash":             header.Hash,
 		"parentHash":       header.ParentHash,
-		"nonce":            types.BlockNonce{},   // PoW specific
-		"sha3Uncles":       types.EmptyUncleHash, // No uncles in Tendermint
 		"logsBloom":        header.Bloom,
 		"stateRoot":        header.Root,
 		"miner":            header.Coinbase,
-		"mixHash":          common.Hash{},
 		"difficulty":       header.Difficulty,
 		"extraData":        "0x",
 		"size":             header.Size,
-		"gasLimit":         header.GasLimit, // Static gas limit
+		"gasLimit":         header.GasLimit,
 		"gasUsed":          header.GasUsed,
 		"timestamp":        header.Time,
 		"transactionsRoot": header.TxHash,
 		"receiptsRoot":     header.ReceiptHash,
-		"uncles":           []common.Hash{},
 	}
 }
 
