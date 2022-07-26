@@ -84,7 +84,7 @@ func dbHashLookup(db *badger.DB, hash common.Hash) ([]byte, error) {
 		return nil, err
 	}
 	if err != nil {
-		return nil, err
+		return hash.Bytes(), err
 	}
 	return item.ValueCopy(nil)
 }
@@ -101,25 +101,6 @@ func (s *EthService) GetBlockByHash(hash string, full bool) (types.Header, error
 	}
 	fmt.Println("Hash: ", header.Hash())
 	return *header, nil
-}
-
-func formatHeader(header *types.Header) map[string]interface{} {
-	return map[string]interface{}{
-		"number":           header.Number,
-		"hash":             header.Hash,
-		"parentHash":       header.ParentHash,
-		"logsBloom":        header.Bloom,
-		"stateRoot":        header.Root,
-		"miner":            header.Coinbase,
-		"difficulty":       header.Difficulty,
-		"extraData":        "0x",
-		"size":             header.Size,
-		"gasLimit":         header.GasLimit,
-		"gasUsed":          header.GasUsed,
-		"timestamp":        header.Time,
-		"transactionsRoot": header.TxHash,
-		"receiptsRoot":     header.ReceiptHash,
-	}
 }
 
 func server(errChan chan error, db *badger.DB, ethClient *ethclient.Client) {
