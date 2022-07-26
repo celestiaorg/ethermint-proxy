@@ -74,7 +74,7 @@ func dbHashLookup(db *badger.DB, hash common.Hash) (string, error) {
 	// Transparently swap the given ethereum hash for the matching tm hash
 	// Make the eth_getBlockByHash(hash) call using the tm hash
 	fmt.Printf("dbHashLookup bytes: %v\n", hash.Bytes())
-	var dbHash string
+	var valCopy []byte
 	err := db.View(func(txn *badger.Txn) error {
 		item, err := txn.Get(hash.Bytes())
 		if err != nil {
@@ -82,8 +82,7 @@ func dbHashLookup(db *badger.DB, hash common.Hash) (string, error) {
 		}
 		err = item.Value(func(val []byte) error {
 			// This func with val would only be called if item.Value encounters no error.
-			valCopy := append([]byte{}, val...)
-			dbHash = string(valCopy)
+			valCopy = append([]byte{}, val...)
 			return nil
 		})
 		return nil
@@ -94,7 +93,7 @@ func dbHashLookup(db *badger.DB, hash common.Hash) (string, error) {
 		}
 	}
 
-	return dbHash, nil
+	return string(valCopy), nil
 }
 
 func (s *EthService) GetBlockByHash(hash string, full bool) (*ethtypes.Block, error) {
