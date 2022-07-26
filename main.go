@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"math/big"
 	"net/http"
@@ -71,32 +72,22 @@ func newEthService(db *badger.DB, ethClient *ethclient.Client) *EthService {
 	}
 }
 
-func dbHashLookup(db *badger.DB, hash common.Hash) (string, error) {
+func dbHashLookup(db *badger.DB, hash common.Hash) ([]byte, error) {
 	// Lookup any values using the given hash as a key
 	// If there's a match that means the given hash is an Ethereum hash
 	// Transparently swap the given ethereum hash for the matching tm hash
 	// Make the eth_getBlockByHash(hash) call using the tm hash
 	fmt.Printf("dbHashLookup bytes: %v\n", hash.Bytes())
-	var valCopy []byte
-	err := db.View(func(txn *badger.Txn) error {
-		item, err := txn.Get(hash.Bytes())
-		if err != nil {
-			return err
-		}
-		err = item.Value(func(val []byte) error {
-			// This func with val would only be called if item.Value encounters no error.
-			valCopy = append([]byte{}, val...)
-			return nil
-		})
-		return nil
-	})
-	if err != nil {
-		if err.Error() != "key not found" {
-			return "", err
-		}
+	txn := db.NewTransaction(false)
+	defer txn.Discard()
+	item, err := txn.Get(hash.Bytes())
+	if errors.Is(err, badger.ErrKeyNotFound) {
+		return nil, err
 	}
-
-	return string(valCopy), nil
+	if err != nil {
+		return nil, err
+	}
+	return item.ValueCopy(nil)
 }
 
 func (s *EthService) GetBlockByHash(hash string, full bool) (*ethtypes.Block, error) {
@@ -106,8 +97,8 @@ func (s *EthService) GetBlockByHash(hash string, full bool) (*ethtypes.Block, er
 	if err != nil {
 		return &ethtypes.Block{}, err
 	}
-	fmt.Println("GetBlockByHash dbHash: ", common.HexToHash(dbHash))
-	block, err := s.ethClient.BlockByHash(ctx, common.HexToHash(dbHash))
+	fmt.Println("GetBlockByHash dbHash: ", common.BytesToHash(dbHash))
+	block, err := s.ethClient.BlockByHash(ctx, common.BytesToHash(dbHash))
 	if err != nil {
 		return &ethtypes.Block{}, err
 	}
@@ -196,10 +187,10 @@ func main() {
 	if err != nil {
 		panic(err)
 	}
-	// wsClient, err := ethclient.Dial("ws://ethermint0:8546")
-	// if err != nil {
-	// 	panic(err)
-	// }
+
+	// Start the server
+	errChan := make(chan error)
+	go server(errChan, db, client)
 
 	// Start from chain genesis
 	height := 0
@@ -234,18 +225,12 @@ func main() {
 		panic(err)
 	}
 
-	errChan := make(chan error)
-	go server(errChan, db, client)
-
 	// Tick every 4 seconds
 	ticker := time.NewTicker(4 * time.Second)
 	defer ticker.Stop()
 
 	for {
 		select {
-		// case <-done:
-		// 	fmt.Println("Done!")
-		// 	return nil
 		case _ = <-ticker.C:
 			b, err := getBlockHashesByNum(rawClient, toBlockNumArg(big.NewInt(int64(head))), true)
 			if err != nil {
@@ -286,22 +271,4 @@ func main() {
 			fmt.Println(err)
 		}
 	}
-
-	// Since subscriptions don't work in Optimint right now we'll just poll every X seconds
-	/*
-		headers := make(chan *ethtypes.Header)
-		sub, err := wsClient.SubscribeNewHead(context.Background(), headers)
-		if err != nil {
-			panic("can't sub: " + err.Error())
-		}
-
-		for {
-			select {
-			case err := <-sub.Err():
-				panic(err)
-			case header := <-headers:
-				fmt.Println(header.Hash().Hex()) // 0xbc10defa8dda384c96a17640d84de5578804945d347072e091b4e5f390ddea7f
-			}
-		}
-	*/
 }
