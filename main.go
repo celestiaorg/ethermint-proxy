@@ -103,7 +103,7 @@ func ethHashLookup(db *badger.DB, hash common.Hash) ([]byte, error) {
 func (s *EthService) GetBlockByNumber(number string, full bool) (types.Header, error) {
 	ctx := context.Background()
 	n := new(big.Int)
-	n.SetString(number, 16)
+	n.SetString(number, 0)
 	fmt.Println("num: ", n)
 	header, err := s.ethClient.HeaderByNumber(ctx, n)
 	if err != nil {
