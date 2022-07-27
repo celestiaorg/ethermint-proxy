@@ -89,30 +89,30 @@ func dbHashLookup(db *badger.DB, hash common.Hash) ([]byte, error) {
 	return item.ValueCopy(nil)
 }
 
-type extblock struct {
-	Header *types.Header
-	Txs    []*types.Transaction
-	Uncles []*types.Header
-}
+// type extblock struct {
+// 	Header *types.Header
+// 	Txs    []*types.Transaction
+// 	Uncles []*types.Header
+// }
 
-func (s *EthService) GetBlockByHash(hash string, full bool) (extblock, error) {
+func (s *EthService) GetBlockByHash(hash string, full bool) (types.Header, error) {
 	ctx := context.Background()
 	dbHash, err := dbHashLookup(s.db, common.HexToHash(hash))
 	if errors.Is(err, badger.ErrKeyNotFound) {
 	} else if err != nil {
-		return extblock{}, err
+		return types.Header{}, err
 	}
-	block, err := s.ethClient.BlockByHash(ctx, common.BytesToHash(dbHash))
+	header, err := s.ethClient.HeaderByHash(ctx, common.BytesToHash(dbHash))
 	if err != nil {
-		return extblock{}, err
+		return types.Header{}, err
 	}
-	extblock := &extblock{
-		Header: block.Header(),
-		Txs:    block.Transactions(),
-		Uncles: block.Uncles(),
-	}
-	fmt.Println("Hash: ", block.Hash())
-	return *extblock, nil
+	// extblock := &extblock{
+	// 	Header: block.Header(),
+	// 	Txs:    block.Transactions(),
+	// 	Uncles: block.Uncles(),
+	// }
+	fmt.Println("Hash: ", header.Hash())
+	return *header, nil
 }
 
 func server(errChan chan error, db *badger.DB, ethClient *ethclient.Client) {
