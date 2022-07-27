@@ -104,13 +104,13 @@ func (s *EthService) GetBlockByNumber(number string, full bool) (types.Header, e
 	ctx := context.Background()
 	n := new(big.Int)
 	n.SetString(number, 16)
+	fmt.Println("num: ", n)
 	header, err := s.ethClient.HeaderByNumber(ctx, n)
 	if err != nil {
 		return types.Header{}, err
 	}
 	// swap the tm parent hash for the eth equivalent
-	fmt.Println("HeadyByNumber: ", header)
-	fmt.Println("Lookup parent hash: ", header.ParentHash)
+	fmt.Println("HeadyByNumber: ", header.Number, header.Hash(), header.ParentHash)
 	parentHash, err := tmHashLookup(s.db, header.ParentHash)
 	if err != nil {
 		return types.Header{}, err
