@@ -100,46 +100,57 @@ func ethHashLookup(db *badger.DB, hash common.Hash) ([]byte, error) {
 	return item.ValueCopy(nil)
 }
 
-func (s *EthService) GetBlockByNumber(number string, full bool) (types.Header, error) {
+type rpcHeader struct {
+	*types.Header
+	common.Hash
+}
+
+func (s *EthService) GetBlockByNumber(number string, full bool) (rpcHeader, error) {
 	ctx := context.Background()
 	n := new(big.Int)
 	n.SetString(number, 0)
 	fmt.Println("num: ", n)
 	header, err := s.ethClient.HeaderByNumber(ctx, n)
 	if err != nil {
-		return types.Header{}, err
+		return rpcHeader{}, err
 	}
 	// swap the tm parent hash for the eth equivalent
 	fmt.Println("HeadyByNumber: ", header.Number, header.Hash(), header.ParentHash)
 	parentHash, err := tmHashLookup(s.db, header.ParentHash)
 	if err != nil {
-		return types.Header{}, err
+		return rpcHeader{}, err
 	}
 	header.ParentHash = common.BytesToHash(parentHash)
-
-	return *header, nil
+	rpcHead := rpcHeader{
+		header,
+		header.Hash(),
+	}
+	return rpcHead, nil
 }
 
-func (s *EthService) GetBlockByHash(hash string, full bool) (types.Header, error) {
+func (s *EthService) GetBlockByHash(hash string, full bool) (rpcHeader, error) {
 	ctx := context.Background()
 	// swap the given Eth hash for the tm hash before retrieving the header
 	dbHash, err := ethHashLookup(s.db, common.HexToHash(hash))
 	if errors.Is(err, badger.ErrKeyNotFound) {
 	} else if err != nil {
-		return types.Header{}, err
+		return rpcHeader{}, err
 	}
 	header, err := s.ethClient.HeaderByHash(ctx, common.BytesToHash(dbHash))
 	if err != nil {
-		return types.Header{}, err
+		return rpcHeader{}, err
 	}
 	// swap the tm parent hash for the eth equivalent
 	parentHash, err := tmHashLookup(s.db, header.ParentHash)
 	if err != nil {
-		return types.Header{}, err
+		return rpcHeader{}, err
 	}
 	header.ParentHash = common.BytesToHash(parentHash)
-
-	return *header, nil
+	rpcHead := rpcHeader{
+		header,
+		header.Hash(),
+	}
+	return rpcHead, nil
 }
 
 func server(errChan chan error, db *badger.DB, ethClient *ethclient.Client) {
