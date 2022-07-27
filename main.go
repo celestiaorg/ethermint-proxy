@@ -100,9 +100,13 @@ func ethHashLookup(db *badger.DB, hash common.Hash) ([]byte, error) {
 	return item.ValueCopy(nil)
 }
 
-func (s *EthService) GetBlockByNumber(number int64, full bool) (types.Header, error) {
+func (s *EthService) GetBlockByNumber(number string, full bool) (types.Header, error) {
 	ctx := context.Background()
-	header, err := s.ethClient.HeaderByNumber(ctx, big.NewInt(number))
+	num, err := strconv.Atoi(number)
+	if err != nil {
+		return types.Header{}, err
+	}
+	header, err := s.ethClient.HeaderByNumber(ctx, big.NewInt(int64(num)))
 	if err != nil {
 		return types.Header{}, err
 	}
