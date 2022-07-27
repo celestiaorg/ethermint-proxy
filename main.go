@@ -29,8 +29,8 @@ const (
 )
 
 type rpcBlock struct {
-	TmHash  common.Hash `json:"hash"`
-	EthHash common.Hash `json:"eth_hash"`
+	EthHash common.Hash `json:"hash"`
+	TmHash  common.Hash `json:"tm_hash"`
 }
 
 func toBlockNumArg(number *big.Int) string {
@@ -58,12 +58,6 @@ func getBlockHashesByNum(client *rpc.Client, args ...interface{}) (*rpcBlock, er
 		return nil, err
 	}
 	return &body, nil
-}
-
-type NoopService struct{}
-
-func (s *NoopService) PassThrough() {
-	fmt.Println("noop")
 }
 
 type EthService struct {
@@ -112,9 +106,7 @@ func (s *EthService) GetBlockByHash(hash string, full bool) (types.Header, error
 
 func server(errChan chan error, db *badger.DB, ethClient *ethclient.Client) {
 	eth := newEthService(db, ethClient)
-	noop := new(NoopService)
 	server := rpc.NewServer()
-	server.RegisterName("", noop)
 	server.RegisterName("eth", eth)
 	http.HandleFunc("/", server.ServeHTTP)
 	err := http.ListenAndServe(":8080", nil)
