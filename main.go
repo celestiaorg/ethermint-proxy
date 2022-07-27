@@ -121,9 +121,14 @@ func (s *EthService) GetBlockByNumber(number string, full bool) (rpcHeader, erro
 		return rpcHeader{}, err
 	}
 	header.ParentHash = common.BytesToHash(parentHash)
+	fmt.Println("HeadyByNumber: ", header.Number, header.Hash(), header.ParentHash)
+	ethHash, err := tmHashLookup(s.db, header.Hash())
+	if err != nil {
+		return rpcHeader{}, err
+	}
 	rpcHead := rpcHeader{
 		header,
-		header.Hash(),
+		common.BytesToHash(ethHash),
 	}
 	return rpcHead, nil
 }
@@ -148,7 +153,7 @@ func (s *EthService) GetBlockByHash(hash string, full bool) (rpcHeader, error) {
 	header.ParentHash = common.BytesToHash(parentHash)
 	rpcHead := rpcHeader{
 		header,
-		header.Hash(),
+		common.HexToHash(hash),
 	}
 	return rpcHead, nil
 }
