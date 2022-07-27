@@ -121,7 +121,9 @@ func (s *EthService) GetBlockByNumber(number string, full bool) (rpcHeader, erro
 		return rpcHeader{}, err
 	}
 	ethHash := header.Hash()
+	fmt.Println("pre parent hash: ", ethHash)
 	header.ParentHash = common.BytesToHash(parentHash)
+	fmt.Println("post parent hash: ", header.Hash())
 	rpcHead := rpcHeader{
 		header,
 		ethHash,
