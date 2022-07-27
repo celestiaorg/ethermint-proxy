@@ -24,6 +24,8 @@ import (
 )
 
 const (
+	tmPrefix                = "tendermint"
+	ethPrefix               = "ethereum"
 	maxRequestContentLength = 1024 * 512
 	defaultErrorCode        = -32000
 )
@@ -72,14 +74,10 @@ func newEthService(db *badger.DB, ethClient *ethclient.Client) *EthService {
 	}
 }
 
-func dbHashLookup(db *badger.DB, hash common.Hash) ([]byte, error) {
-	// Lookup any values using the given hash as a key
-	// If there's a match that means the given hash is an Ethereum hash
-	// Transparently swap the given ethereum hash for the matching tm hash
-	// Make the eth_getBlockByHash(hash) call using the tm hash
+func tmHashLookup(db *badger.DB, hash common.Hash) ([]byte, error) {
 	txn := db.NewTransaction(false)
 	defer txn.Discard()
-	item, err := txn.Get(hash.Bytes())
+	item, err := txn.Get(append([]byte(tmPrefix), hash.Bytes()...))
 	if errors.Is(err, badger.ErrKeyNotFound) {
 		return hash.Bytes(), err
 	}
@@ -89,15 +87,23 @@ func dbHashLookup(db *badger.DB, hash common.Hash) ([]byte, error) {
 	return item.ValueCopy(nil)
 }
 
-// type extblock struct {
-// 	Header *types.Header
-// 	Txs    []*types.Transaction
-// 	Uncles []*types.Header
-// }
+func ethHashLookup(db *badger.DB, hash common.Hash) ([]byte, error) {
+	txn := db.NewTransaction(false)
+	defer txn.Discard()
+	item, err := txn.Get(append([]byte(ethPrefix), hash.Bytes()...))
+	if errors.Is(err, badger.ErrKeyNotFound) {
+		return hash.Bytes(), err
+	}
+	if err != nil {
+		return nil, err
+	}
+	return item.ValueCopy(nil)
+}
 
 func (s *EthService) GetBlockByHash(hash string, full bool) (types.Header, error) {
 	ctx := context.Background()
-	dbHash, err := dbHashLookup(s.db, common.HexToHash(hash))
+	// swap the given Eth hash for the tm hash before retrieving the header
+	dbHash, err := ethHashLookup(s.db, common.HexToHash(hash))
 	if errors.Is(err, badger.ErrKeyNotFound) {
 	} else if err != nil {
 		return types.Header{}, err
@@ -106,7 +112,8 @@ func (s *EthService) GetBlockByHash(hash string, full bool) (types.Header, error
 	if err != nil {
 		return types.Header{}, err
 	}
-	parentHash, err := dbHashLookup(s.db, header.ParentHash)
+	// swap the tm parent hash for the eth equivalent
+	parentHash, err := tmHashLookup(s.db, header.ParentHash)
 	if err != nil {
 		return types.Header{}, err
 	}
@@ -146,12 +153,12 @@ func walkChain(rawClient rpc.Client, client ethclient.Client, height uint64, db 
 		defer txn.Discard()
 
 		// tm to eth
-		err = txn.Set(b.TmHash.Bytes(), b.EthHash.Bytes())
+		err = txn.Set(append([]byte(tmPrefix), b.TmHash.Bytes()...), b.EthHash.Bytes())
 		if err != nil {
 			return 0, err
 		}
 		// eth to tm
-		err = txn.Set(b.EthHash.Bytes(), b.TmHash.Bytes())
+		err = txn.Set(append([]byte(ethPrefix), b.EthHash.Bytes()...), b.TmHash.Bytes())
 		if err != nil {
 			return 0, err
 		}
@@ -255,12 +262,12 @@ func main() {
 			defer txn.Discard()
 
 			// tm to eth
-			err = txn.Set(b.TmHash.Bytes(), b.EthHash.Bytes())
+			err = txn.Set(append([]byte(tmPrefix), b.TmHash.Bytes()...), b.EthHash.Bytes())
 			if err != nil {
 				panic(err)
 			}
 			// eth to tm
-			err = txn.Set(b.EthHash.Bytes(), b.TmHash.Bytes())
+			err = txn.Set(append([]byte(ethPrefix), b.EthHash.Bytes()...), b.TmHash.Bytes())
 			if err != nil {
 				panic(err)
 			}
