@@ -89,19 +89,30 @@ func dbHashLookup(db *badger.DB, hash common.Hash) ([]byte, error) {
 	return item.ValueCopy(nil)
 }
 
-func (s *EthService) GetBlockByHash(hash string, full bool) (types.Block, error) {
+type extblock struct {
+	Header *types.Header
+	Txs    []*types.Transaction
+	Uncles []*types.Header
+}
+
+func (s *EthService) GetBlockByHash(hash string, full bool) (extblock, error) {
 	ctx := context.Background()
 	dbHash, err := dbHashLookup(s.db, common.HexToHash(hash))
 	if errors.Is(err, badger.ErrKeyNotFound) {
 	} else if err != nil {
-		return types.Block{}, err
+		return extblock{}, err
 	}
 	block, err := s.ethClient.BlockByHash(ctx, common.BytesToHash(dbHash))
 	if err != nil {
-		return types.Block{}, err
+		return extblock{}, err
+	}
+	extblock := &extblock{
+		Header: block.Header(),
+		Txs:    block.Transactions(),
+		Uncles: block.Uncles(),
 	}
 	fmt.Println("Hash: ", block.Hash())
-	return *block, nil
+	return *extblock, nil
 }
 
 func server(errChan chan error, db *badger.DB, ethClient *ethclient.Client) {
