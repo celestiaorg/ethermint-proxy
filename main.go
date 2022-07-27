@@ -109,6 +109,7 @@ func (s *EthService) GetBlockByNumber(number string, full bool) (types.Header, e
 		return types.Header{}, err
 	}
 	// swap the tm parent hash for the eth equivalent
+	fmt.Println("Lookup parent hash: ", header.ParentHash)
 	parentHash, err := tmHashLookup(s.db, header.ParentHash)
 	if err != nil {
 		return types.Header{}, err
