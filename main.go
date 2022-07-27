@@ -106,12 +106,12 @@ func (s *EthService) GetBlockByHash(hash string, full bool) (types.Header, error
 	if err != nil {
 		return types.Header{}, err
 	}
-	// extblock := &extblock{
-	// 	Header: block.Header(),
-	// 	Txs:    block.Transactions(),
-	// 	Uncles: block.Uncles(),
-	// }
-	fmt.Println("Hash: ", header.Hash())
+	parentHash, err := dbHashLookup(s.db, header.ParentHash)
+	if err != nil {
+		return types.Header{}, err
+	}
+	header.ParentHash = common.BytesToHash(parentHash)
+
 	return *header, nil
 }
 
@@ -145,6 +145,11 @@ func walkChain(rawClient rpc.Client, client ethclient.Client, height uint64, db 
 		txn := db.NewTransaction(true)
 		defer txn.Discard()
 
+		// tm to eth
+		err = txn.Set(b.TmHash.Bytes(), b.EthHash.Bytes())
+		if err != nil {
+			return 0, err
+		}
 		// eth to tm
 		err = txn.Set(b.EthHash.Bytes(), b.TmHash.Bytes())
 		if err != nil {
@@ -249,6 +254,11 @@ func main() {
 			txn := db.NewTransaction(true)
 			defer txn.Discard()
 
+			// tm to eth
+			err = txn.Set(b.TmHash.Bytes(), b.EthHash.Bytes())
+			if err != nil {
+				panic(err)
+			}
 			// eth to tm
 			err = txn.Set(b.EthHash.Bytes(), b.TmHash.Bytes())
 			if err != nil {
