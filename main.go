@@ -100,6 +100,22 @@ func ethHashLookup(db *badger.DB, hash common.Hash) ([]byte, error) {
 	return item.ValueCopy(nil)
 }
 
+func (s *EthService) GetBlockByNumber(number int64, full bool) (types.Header, error) {
+	ctx := context.Background()
+	header, err := s.ethClient.HeaderByNumber(ctx, big.NewInt(number))
+	if err != nil {
+		return types.Header{}, err
+	}
+	// swap the tm parent hash for the eth equivalent
+	parentHash, err := tmHashLookup(s.db, header.ParentHash)
+	if err != nil {
+		return types.Header{}, err
+	}
+	header.ParentHash = common.BytesToHash(parentHash)
+
+	return *header, nil
+}
+
 func (s *EthService) GetBlockByHash(hash string, full bool) (types.Header, error) {
 	ctx := context.Background()
 	// swap the given Eth hash for the tm hash before retrieving the header
