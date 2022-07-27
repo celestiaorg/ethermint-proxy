@@ -30,6 +30,29 @@ const (
 	defaultErrorCode        = -32000
 )
 
+type RpcHeader struct {
+	ParentHash  common.Hash      `json:"parentHash"       gencodec:"required"`
+	UncleHash   common.Hash      `json:"sha3Uncles"       gencodec:"required"`
+	Coinbase    common.Address   `json:"miner"`
+	Root        common.Hash      `json:"stateRoot"        gencodec:"required"`
+	TxHash      common.Hash      `json:"transactionsRoot" gencodec:"required"`
+	ReceiptHash common.Hash      `json:"receiptsRoot"     gencodec:"required"`
+	Bloom       types.Bloom      `json:"logsBloom"        gencodec:"required"`
+	Difficulty  *big.Int         `json:"difficulty"       gencodec:"required"`
+	Number      *big.Int         `json:"number"           gencodec:"required"`
+	GasLimit    uint64           `json:"gasLimit"         gencodec:"required"`
+	GasUsed     uint64           `json:"gasUsed"          gencodec:"required"`
+	Time        uint64           `json:"timestamp"        gencodec:"required"`
+	Extra       []byte           `json:"extraData"        gencodec:"required"`
+	MixDigest   common.Hash      `json:"mixHash"`
+	Nonce       types.BlockNonce `json:"nonce"`
+
+	// BaseFee was added by EIP-1559 and is ignored in legacy headers.
+	BaseFee *big.Int `json:"baseFeePerGas" rlp:"optional"`
+
+	Hash common.Hash `json:"hash"`
+}
+
 type rpcBlock struct {
 	EthHash common.Hash `json:"hash"`
 	TmHash  common.Hash `json:"tm_hash"`
@@ -100,60 +123,68 @@ func ethHashLookup(db *badger.DB, hash common.Hash) ([]byte, error) {
 	return item.ValueCopy(nil)
 }
 
-type rpcHeader struct {
-	*types.Header
-	common.Hash
+func ethHeaderToRpcHeader(ethHeader *types.Header) *RpcHeader {
+	rpcHeader := &RpcHeader{
+		BaseFee:     ethHeader.BaseFee,
+		Bloom:       ethHeader.Bloom,
+		Coinbase:    ethHeader.Coinbase,
+		Difficulty:  ethHeader.Difficulty,
+		Extra:       ethHeader.Extra,
+		GasLimit:    ethHeader.GasLimit,
+		GasUsed:     ethHeader.GasUsed,
+		MixDigest:   ethHeader.MixDigest,
+		Nonce:       ethHeader.Nonce,
+		Number:      ethHeader.Number,
+		Root:        ethHeader.Root,
+		Time:        ethHeader.Time,
+		TxHash:      ethHeader.TxHash,
+		UncleHash:   ethHeader.UncleHash,
+		ReceiptHash: ethHeader.ReceiptHash,
+	}
+	return rpcHeader
 }
 
-func (s *EthService) GetBlockByNumber(number string, full bool) (rpcHeader, error) {
+func (s *EthService) GetBlockByNumber(number string, full bool) (*RpcHeader, error) {
 	ctx := context.Background()
 	n := new(big.Int)
 	n.SetString(number, 0)
-	fmt.Println("num: ", n)
 	header, err := s.ethClient.HeaderByNumber(ctx, n)
 	if err != nil {
-		return rpcHeader{}, err
+		return nil, err
 	}
 	// swap the tm parent hash for the eth equivalent
-	fmt.Println("HeadyByNumber: ", header.Number, header.Hash(), header.ParentHash)
+	fmt.Println("HeaderByNumber: ", header.Number, header.Hash(), header.ParentHash)
 	parentHash, err := tmHashLookup(s.db, header.ParentHash)
 	if err != nil {
-		return rpcHeader{}, err
+		return nil, err
 	}
 	ethHash := header.Hash()
 	fmt.Println("pre parent hash: ", ethHash)
-	header.ParentHash = common.BytesToHash(parentHash)
-	fmt.Println("post parent hash: ", header.Hash())
-	rpcHead := rpcHeader{
-		header,
-		ethHash,
-	}
-	return rpcHead, nil
+	rpcHeader := ethHeaderToRpcHeader(header)
+	rpcHeader.Hash = ethHash
+	rpcHeader.ParentHash = common.BytesToHash(parentHash)
+	return rpcHeader, nil
 }
 
-func (s *EthService) GetBlockByHash(hash string, full bool) (rpcHeader, error) {
+func (s *EthService) GetBlockByHash(hash string, full bool) (*types.Header, error) {
 	ctx := context.Background()
 	// swap the given Eth hash for the tm hash before retrieving the header
 	dbHash, err := ethHashLookup(s.db, common.HexToHash(hash))
 	if errors.Is(err, badger.ErrKeyNotFound) {
 	} else if err != nil {
-		return rpcHeader{}, err
+		return nil, err
 	}
 	header, err := s.ethClient.HeaderByHash(ctx, common.BytesToHash(dbHash))
 	if err != nil {
-		return rpcHeader{}, err
+		return nil, err
 	}
 	// swap the tm parent hash for the eth equivalent
 	parentHash, err := tmHashLookup(s.db, header.ParentHash)
 	if err != nil {
-		return rpcHeader{}, err
+		return nil, err
 	}
 	header.ParentHash = common.BytesToHash(parentHash)
-	rpcHead := rpcHeader{
-		header,
-		common.HexToHash(hash),
-	}
-	return rpcHead, nil
+	return header, nil
 }
 
 func server(errChan chan error, db *badger.DB, ethClient *ethclient.Client) {
