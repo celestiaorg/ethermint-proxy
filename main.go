@@ -18,9 +18,10 @@ import (
 	"github.com/ethereum/go-ethereum"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/common/hexutil"
-	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/ethclient"
 	"github.com/ethereum/go-ethereum/rpc"
+
+	types "github.com/celestiaorg/ethermint-proxy/header"
 )
 
 const (
@@ -29,29 +30,6 @@ const (
 	maxRequestContentLength = 1024 * 512
 	defaultErrorCode        = -32000
 )
-
-type RpcHeader struct {
-	ParentHash  common.Hash      `json:"parentHash"       gencodec:"required"`
-	UncleHash   common.Hash      `json:"sha3Uncles"       gencodec:"required"`
-	Coinbase    common.Address   `json:"miner"`
-	Root        common.Hash      `json:"stateRoot"        gencodec:"required"`
-	TxHash      common.Hash      `json:"transactionsRoot" gencodec:"required"`
-	ReceiptHash common.Hash      `json:"receiptsRoot"     gencodec:"required"`
-	Bloom       types.Bloom      `json:"logsBloom"        gencodec:"required"`
-	Difficulty  *big.Int         `json:"difficulty"       gencodec:"required"`
-	Number      *big.Int         `json:"number"           gencodec:"required"`
-	GasLimit    uint64           `json:"gasLimit"         gencodec:"required"`
-	GasUsed     uint64           `json:"gasUsed"          gencodec:"required"`
-	Time        uint64           `json:"timestamp"        gencodec:"required"`
-	Extra       []byte           `json:"extraData"        gencodec:"required"`
-	MixDigest   common.Hash      `json:"mixHash"`
-	Nonce       types.BlockNonce `json:"nonce"`
-
-	// BaseFee was added by EIP-1559 and is ignored in legacy headers.
-	BaseFee *big.Int `json:"baseFeePerGas" rlp:"optional"`
-
-	Hash common.Hash `json:"hash"`
-}
 
 type rpcBlock struct {
 	EthHash common.Hash `json:"hash"`
@@ -123,28 +101,7 @@ func ethHashLookup(db *badger.DB, hash common.Hash) ([]byte, error) {
 	return item.ValueCopy(nil)
 }
 
-func ethHeaderToRpcHeader(ethHeader *types.Header) *RpcHeader {
-	rpcHeader := &RpcHeader{
-		BaseFee:     ethHeader.BaseFee,
-		Bloom:       ethHeader.Bloom,
-		Coinbase:    ethHeader.Coinbase,
-		Difficulty:  ethHeader.Difficulty,
-		Extra:       ethHeader.Extra,
-		GasLimit:    ethHeader.GasLimit,
-		GasUsed:     ethHeader.GasUsed,
-		MixDigest:   ethHeader.MixDigest,
-		Nonce:       ethHeader.Nonce,
-		Number:      ethHeader.Number,
-		Root:        ethHeader.Root,
-		Time:        ethHeader.Time,
-		TxHash:      ethHeader.TxHash,
-		UncleHash:   ethHeader.UncleHash,
-		ReceiptHash: ethHeader.ReceiptHash,
-	}
-	return rpcHeader
-}
-
-func (s *EthService) GetBlockByNumber(number string, full bool) (*RpcHeader, error) {
+func (s *EthService) GetBlockByNumber(number string, full bool) (*types.RpcHeader, error) {
 	ctx := context.Background()
 	n := new(big.Int)
 	n.SetString(number, 0)
@@ -160,13 +117,13 @@ func (s *EthService) GetBlockByNumber(number string, full bool) (*RpcHeader, err
 	}
 	ethHash := header.Hash()
 	fmt.Println("pre parent hash: ", ethHash)
-	rpcHeader := ethHeaderToRpcHeader(header)
+	rpcHeader := types.EthHeaderToRpcHeader(header)
 	rpcHeader.Hash = ethHash
 	rpcHeader.ParentHash = common.BytesToHash(parentHash)
 	return rpcHeader, nil
 }
 
-func (s *EthService) GetBlockByHash(hash string, full bool) (*types.Header, error) {
+func (s *EthService) GetBlockByHash(hash string, full bool) (*types.RpcHeader, error) {
 	ctx := context.Background()
 	// swap the given Eth hash for the tm hash before retrieving the header
 	dbHash, err := ethHashLookup(s.db, common.HexToHash(hash))
@@ -183,8 +140,12 @@ func (s *EthService) GetBlockByHash(hash string, full bool) (*types.Header, erro
 	if err != nil {
 		return nil, err
 	}
-	header.ParentHash = common.BytesToHash(parentHash)
-	return header, nil
+	ethHash := header.Hash()
+	fmt.Println("pre parent hash: ", ethHash)
+	rpcHeader := types.EthHeaderToRpcHeader(header)
+	rpcHeader.Hash = common.HexToHash(hash)
+	rpcHeader.ParentHash = common.BytesToHash(parentHash)
+	return rpcHeader, nil
 }
 
 func server(errChan chan error, db *badger.DB, ethClient *ethclient.Client) {
