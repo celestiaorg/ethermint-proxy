@@ -25,6 +25,7 @@ import (
 )
 
 const (
+	emptyParent             = "0x0000000000000000000000000000000000000000000000000000000000000000"
 	tmPrefix                = "tendermint"
 	ethPrefix               = "ethereum"
 	maxRequestContentLength = 1024 * 512
@@ -110,17 +111,14 @@ func (s *EthService) GetBlockByNumber(number string, full bool) (*types.RpcHeade
 	if err != nil {
 		return nil, err
 	}
-	if n == big.NewInt(0) || n == big.NewInt(1) {
-		ethHash := header.Hash()
-		rpcHeader := types.EthHeaderToRpcHeader(header)
-		rpcHeader.Hash = ethHash
-		return rpcHeader, nil
-	}
-	// swap the tm parent hash for the eth equivalent
-	fmt.Println("HeaderByNumber: ", header.Number, header.Hash(), header.ParentHash)
-	parentHash, err := tmHashLookup(s.db, header.ParentHash)
-	if err != nil {
-		return nil, err
+	var parentHash []byte
+	if header.ParentHash != common.HexToHash(emptyParent) {
+		// swap the tm parent hash for the eth equivalent
+		fmt.Println("HeaderByNumber: ", header.Number, header.Hash(), header.ParentHash)
+		parentHash, err = tmHashLookup(s.db, header.ParentHash)
+		if err != nil {
+			return nil, err
+		}
 	}
 	ethHash := header.Hash()
 	fmt.Println("pre parent hash: ", ethHash)
