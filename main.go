@@ -109,7 +109,7 @@ func (s *EthService) GetBlockByNumber(number string, full bool) (*types.RpcHeade
 	if err != nil {
 		return nil, err
 	}
-	if number == "0x0" || number == "0x1" {
+	if n == big.NewInt(0) || n == big.NewInt(1) {
 		ethHash := header.Hash()
 		rpcHeader := types.EthHeaderToRpcHeader(header)
 		rpcHeader.Hash = ethHash
