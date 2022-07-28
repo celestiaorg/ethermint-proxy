@@ -105,6 +105,7 @@ func (s *EthService) GetBlockByNumber(number string, full bool) (*types.RpcHeade
 	ctx := context.Background()
 	n := new(big.Int)
 	n.SetString(number, 0)
+	fmt.Println("n: ", n)
 	header, err := s.ethClient.HeaderByNumber(ctx, n)
 	if err != nil {
 		return nil, err
