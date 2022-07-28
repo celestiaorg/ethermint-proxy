@@ -109,6 +109,12 @@ func (s *EthService) GetBlockByNumber(number string, full bool) (*types.RpcHeade
 	if err != nil {
 		return nil, err
 	}
+	if header.Number == big.NewInt(0) {
+		ethHash := header.Hash()
+		rpcHeader := types.EthHeaderToRpcHeader(header)
+		rpcHeader.Hash = ethHash
+		return rpcHeader, nil
+	}
 	// swap the tm parent hash for the eth equivalent
 	fmt.Println("HeaderByNumber: ", header.Number, header.Hash(), header.ParentHash)
 	parentHash, err := tmHashLookup(s.db, header.ParentHash)
